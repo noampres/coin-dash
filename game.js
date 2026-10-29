@@ -1,4 +1,10 @@
 /* global Phaser, COIN_DASH */
+// Plain Audio rather than this.load.audio: Phaser's XHR loader fails when opened via file://.
+const coinSound = new Audio('assets/coin.wav');
+function playCoinSound() {
+  coinSound.currentTime = 0;
+  coinSound.play().catch(() => {});
+}
 class CoinDash extends Phaser.Scene {
   constructor() { super('CoinDash'); }
 
@@ -29,6 +35,7 @@ class CoinDash extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.coin, () => {
       if (this.finished) return;
       this.score++;
+      playCoinSound();
       this.placeCoin();
     });
     this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
