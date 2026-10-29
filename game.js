@@ -44,6 +44,7 @@ class CoinDash extends Phaser.Scene {
       this.placeCoin();
     });
     this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
+    this.createHunter();
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
@@ -58,6 +59,7 @@ class CoinDash extends Phaser.Scene {
     this.player.setFillStyle(t.player);
     this.coin.setFillStyle(t.coin);
     this.drones.getChildren().forEach(drone => drone.setFillStyle(t.drone));
+    this.hunter.setFillStyle(t.hunter);
     if (this.overlay) {
       this.overlay.setFillStyle(t.overlay, 0.95);
       this.overlayText.setColor(t.overlayText);
@@ -84,9 +86,44 @@ class CoinDash extends Phaser.Scene {
       - Number(this.cursors.up.isDown || this.keys.W.isDown);
     const direction = new Phaser.Math.Vector2(dx, dy).normalize().scale(COIN_DASH.playerSpeed);
     this.player.body.setVelocity(direction.x, direction.y);
+    this.updateHunter();
     const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
     this.hud.setText(`Coins: ${this.score}                       Time: ${seconds}s`);
     if (seconds === 0) this.finish('Time is up!');
+  }
+
+  createHunter() {
+    const c = COIN_DASH;
+    // Spawn the hunter well away from the player, initially heading towards them.
+    let x, y;
+    do {
+      x = Phaser.Math.Between(40, c.width - 40);
+      y = Phaser.Math.Between(80, c.height - 40);
+    } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 280);
+    this.hunter = this.add.triangle(x, y, 0, 28, 14, 0, 28, 28, theme().hunter);
+    this.physics.add.existing(this.hunter);
+    this.hunter.body.setCircle(10, 4, 4).setCollideWorldBounds(true);
+    this.hunterHeading = Phaser.Math.Angle.Between(x, y, this.player.x, this.player.y);
+    this.physics.add.overlap(this.player, this.hunter, () => this.finish('The hunter caught you!'));
+  }
+
+  updateHunter() {
+    const c = COIN_DASH;
+    const body = this.hunter.body;
+    // Freeze power-up convention: frozenUntil is a time comparable to this.time.now.
+    if (this.frozenUntil && this.time.now < this.frozenUntil) {
+      body.setVelocity(0, 0);
+      return;
+    }
+    // Aim slightly ahead of the player, but turn towards it at a limited rate.
+    const v = this.player.body.velocity;
+    const goal = Phaser.Math.Angle.Between(this.hunter.x, this.hunter.y,
+      this.player.x + v.x * c.hunterLead, this.player.y + v.y * c.hunterLead);
+    const step = c.hunterTurnRate * this.game.loop.delta / 1000;
+    this.hunterHeading = Phaser.Math.Angle.Wrap(
+      Phaser.Math.Angle.RotateTo(this.hunterHeading, goal, step));
+    this.physics.velocityFromRotation(this.hunterHeading, c.hunterSpeed, body.velocity);
+    this.hunter.setRotation(this.hunterHeading + Math.PI / 2);
   }
 
   finish(reason) {
