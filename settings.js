@@ -6,6 +6,10 @@ window.COIN_DASH = {
   playerSpeed: 240,
   droneSpeed: 105,
   droneCount: 3,
+  bonusDelayMin: 6000, // ms between bonus gems (random in range)
+  bonusDelayMax: 10000,
+  bonusLifetime: 4000, // ms a bonus gem stays before vanishing
+  bonusValue: 3,
   themes: {
     dark: { background: 0x101c31, grid: 0x24334b, player: 0x71e8ce, coin: 0xffd166, drone: 0xff657a,
       hud: '#ffffff', overlay: 0x0a1120, overlayText: '#ffffff' },
@@ -13,3 +17,5 @@ window.COIN_DASH = {
       hud: '#1a2433', overlay: 0xffffff, overlayText: '#1a2433' }
   }
 };
+COIN_DASH.themes.dark.bonus = 0xc77dff;
+COIN_DASH.themes.light.bonus = 0x8e44d6;
