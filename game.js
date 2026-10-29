@@ -44,8 +44,11 @@ class CoinDash extends Phaser.Scene {
       playCoinSound();
       this.placeCoin();
     });
-    this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
+    this.physics.add.overlap(this.player, this.drones, () => {
+      if (this.time.now >= this.frozenUntil) this.finish('A drone caught you!');
+    });
     this.createHunter();
+    this.createFreeze();
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
@@ -59,9 +62,11 @@ class CoinDash extends Phaser.Scene {
     this.hud.setColor(t.hud);
     this.player.setFillStyle(t.player);
     this.coin.setFillStyle(t.coin);
-    this.drones.getChildren().forEach(drone => drone.setFillStyle(t.drone));
+    this.drones.getChildren().forEach(drone => drone.setFillStyle(this.savedVelocities ? t.freeze : t.drone));
     this.hunter.setFillStyle(t.hunter);
     this.bonus.setFillStyle(t.bonus);
+    this.freeze.setFillStyle(t.freeze);
+    this.freezeText.setColor(t.freezeText);
     if (this.overlay) {
       this.overlay.setFillStyle(t.overlay, 0.95);
       this.overlayText.setColor(t.overlayText);
@@ -138,6 +143,7 @@ class CoinDash extends Phaser.Scene {
     this.updateHunter();
     const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
     this.hud.setText(`Coins: ${this.score}                       Time: ${seconds}s`);
+    this.updateFreeze();
     if (seconds === 0) this.finish('Time is up!');
   }
 
@@ -173,6 +179,70 @@ class CoinDash extends Phaser.Scene {
       Phaser.Math.Angle.RotateTo(this.hunterHeading, goal, step));
     this.physics.velocityFromRotation(this.hunterHeading, c.hunterSpeed, body.velocity);
     this.hunter.setRotation(this.hunterHeading + Math.PI / 2);
+  }
+
+  createFreeze() {
+    const c = COIN_DASH;
+    // Shared convention: drones (and other enemies) stop while time.now < frozenUntil.
+    this.frozenUntil = 0;
+    this.savedVelocities = null;
+    this.freeze = this.add.star(0, 0, 6, 6, 12, theme().freeze);
+    this.physics.add.existing(this.freeze);
+    this.freeze.body.setCircle(12);
+    this.hideFreeze();
+    this.freezeText = this.add.text(c.width - 18, 12, '',
+      { font: '18px monospace', color: theme().freezeText }).setOrigin(1, 0);
+    this.physics.add.overlap(this.player, this.freeze, () => this.collectFreeze());
+  }
+
+  hideFreeze() {
+    // A hidden pickup has its body disabled so it cannot be collected.
+    this.freeze.setVisible(false);
+    this.freeze.body.enable = false;
+    this.nextFreezeAt = this.time.now + COIN_DASH.freezeInterval;
+  }
+
+  showFreeze() {
+    const c = COIN_DASH;
+    let x, y;
+    do {
+      x = Phaser.Math.Between(25, c.width - 25);
+      y = Phaser.Math.Between(70, c.height - 25);
+    } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 150);
+    this.freeze.setPosition(x, y).setVisible(true);
+    this.freeze.body.enable = true;
+    this.freeze.body.reset(x, y);
+    this.freezeExpiresAt = this.time.now + c.freezeLifetime;
+  }
+
+  collectFreeze() {
+    if (this.finished || !this.freeze.visible) return;
+    this.hideFreeze();
+    // Save velocities only on the first pickup so a second one just extends the freeze.
+    if (!this.savedVelocities) {
+      this.savedVelocities = this.drones.getChildren().map((drone) => {
+        const saved = { drone, x: drone.body.velocity.x, y: drone.body.velocity.y };
+        drone.body.setVelocity(0, 0);
+        drone.setFillStyle(theme().freeze);
+        return saved;
+      });
+    }
+    this.frozenUntil = this.time.now + COIN_DASH.freezeDuration;
+  }
+
+  updateFreeze() {
+    const now = this.time.now;
+    if (!this.freeze.visible && now >= this.nextFreezeAt) this.showFreeze();
+    else if (this.freeze.visible && now >= this.freezeExpiresAt) this.hideFreeze();
+    if (this.savedVelocities && now >= this.frozenUntil) {
+      for (const { drone, x, y } of this.savedVelocities) {
+        drone.body.setVelocity(x, y);
+        drone.setFillStyle(theme().drone);
+      }
+      this.savedVelocities = null;
+    }
+    const left = Math.ceil((this.frozenUntil - now) / 1000);
+    this.freezeText.setText(this.savedVelocities ? `Freeze: ${left}s` : '');
   }
 
   finish(reason) {
