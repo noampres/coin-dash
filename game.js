@@ -29,6 +29,7 @@ class CoinDash extends Phaser.Scene {
     this.physics.add.existing(this.coin);
     this.coin.body.setCircle(9);
     this.placeCoin();
+    this.createBonus();
     this.drones = this.physics.add.group();
     for (let i = 0; i < c.droneCount; i++) {
       const drone = this.add.rectangle(90 + i * 270, 100, 26, 26, t.drone);
@@ -60,6 +61,7 @@ class CoinDash extends Phaser.Scene {
     this.coin.setFillStyle(t.coin);
     this.drones.getChildren().forEach(drone => drone.setFillStyle(t.drone));
     this.hunter.setFillStyle(t.hunter);
+    this.bonus.setFillStyle(t.bonus);
     if (this.overlay) {
       this.overlay.setFillStyle(t.overlay, 0.95);
       this.overlayText.setColor(t.overlayText);
@@ -76,6 +78,53 @@ class CoinDash extends Phaser.Scene {
     } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 60);
     this.coin.setPosition(x, y);
     this.coin.body.reset(x, y);
+  }
+
+  createBonus() {
+    // Violet diamond worth extra points; appears now and then, vanishes after bonusLifetime.
+    this.bonus = this.add.rectangle(0, 0, 16, 16, theme().bonus).setAngle(45);
+    this.physics.add.existing(this.bonus);
+    this.bonusTimers = [];
+    this.hideBonus();
+    this.physics.add.overlap(this.player, this.bonus, () => {
+      if (this.finished || !this.bonus.active) return;
+      this.score += COIN_DASH.bonusValue;
+      playCoinSound();
+      this.hideBonus();
+    });
+  }
+
+  hideBonus() {
+    // Hide the gem, disable its body and schedule the next one.
+    this.bonusTimers.forEach(t => t.remove());
+    this.tweens.killTweensOf(this.bonus);
+    this.bonus.setActive(false).setVisible(false).setAlpha(1);
+    this.bonus.body.enable = false;
+    if (this.finished) return;
+    const c = COIN_DASH;
+    this.bonusTimers = [this.time.delayedCall(
+      Phaser.Math.Between(c.bonusDelayMin, c.bonusDelayMax), () => this.spawnBonus())];
+  }
+
+  spawnBonus() {
+    if (this.finished) return;
+    const c = COIN_DASH;
+    let x, y;
+    do {
+      x = Phaser.Math.Between(25, c.width - 25);
+      y = Phaser.Math.Between(70, c.height - 25);
+    } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 60
+      || Phaser.Math.Distance.Between(x, y, this.coin.x, this.coin.y) < 30);
+    this.bonus.setPosition(x, y).setActive(true).setVisible(true);
+    this.bonus.body.enable = true;
+    this.bonus.body.reset(x, y);
+    // Blink during the last second, then vanish.
+    this.bonusTimers = [
+      this.time.delayedCall(Math.max(0, c.bonusLifetime - 1000), () => {
+        if (!this.finished) this.tweens.add({ targets: this.bonus, alpha: 0.2, duration: 125, yoyo: true, repeat: 3 });
+      }),
+      this.time.delayedCall(c.bonusLifetime, () => { if (!this.finished) this.hideBonus(); })
+    ];
   }
 
   update() {

@@ -9,6 +9,10 @@ window.COIN_DASH = {
   hunterSpeed: 150,
   hunterTurnRate: 2.4, // radians per second the hunter can turn
   hunterLead: 0.35, // seconds ahead of the player the hunter aims
+  bonusDelayMin: 6000, // ms between bonus gems (random in range)
+  bonusDelayMax: 10000,
+  bonusLifetime: 4000, // ms a bonus gem stays before vanishing
+  bonusValue: 3,
   themes: {
     dark: { background: 0x101c31, grid: 0x24334b, player: 0x71e8ce, coin: 0xffd166, drone: 0xff657a,
       hud: '#ffffff', overlay: 0x0a1120, overlayText: '#ffffff' },
@@ -18,3 +22,5 @@ window.COIN_DASH = {
 };
 COIN_DASH.themes.dark.hunter = 0xff8c42;
 COIN_DASH.themes.light.hunter = 0xd9620b;
+COIN_DASH.themes.dark.bonus = 0xc77dff;
+COIN_DASH.themes.light.bonus = 0x8e44d6;
