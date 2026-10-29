@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Coin Dash — Lab 3 starter</title>
+<script>try { if (localStorage.getItem('coinDashTheme') === 'light') document.documentElement.dataset.theme = 'light'; } catch (e) {}</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -10,7 +11,8 @@
   <header><p>LAB 3 · STARTER GAME</p><h1>Coin Dash</h1>
   <p>Collect yellow coins. Dodge red drones. How many can you collect in 45 seconds?</p></header>
   <div id="game" aria-label="Coin Dash game. Move with arrow keys or WASD."></div>
-  <p>Move: <strong>arrow keys / WASD</strong> · Restart: <strong>R</strong></p>
+  <p>Move: <strong>arrow keys / WASD</strong> · Restart: <strong>R</strong> · Theme: <strong>T</strong>
+  <button id="theme-toggle" type="button"></button></p>
 </main>
 <script src="vendor/phaser-3.90.0.min.js"></script>
 <script src="settings.js"></script><script src="game.js"></script>
