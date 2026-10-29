@@ -5,7 +5,7 @@ press R to restart. This is deliberately small so you can add features during th
 
 **Play it here:** https://www.avivz.net/coin-dash/
 
-**Team:** Idan Koren
+**Team:** Idan Koren, Noam Presente
 
 ## Run it locally
 
