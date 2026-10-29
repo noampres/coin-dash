@@ -29,6 +29,12 @@ class CoinDash extends Phaser.Scene {
     this.physics.add.existing(this.coin);
     this.coin.body.setCircle(9);
     this.placeCoin();
+    // Bonus coin: a star that shows up briefly and adds a second to the clock.
+    this.bonus = this.add.star(0, 0, 5, 6, 13, t.bonus).setVisible(false);
+    this.physics.add.existing(this.bonus);
+    this.bonus.body.setCircle(13);
+    this.bonus.body.enable = false;
+    this.scheduleBonus();
     this.drones = this.physics.add.group();
     for (let i = 0; i < c.droneCount; i++) {
       const drone = this.add.rectangle(90 + i * 270, 100, 26, 26, t.drone);
@@ -42,6 +48,12 @@ class CoinDash extends Phaser.Scene {
       this.score++;
       playCoinSound();
       this.placeCoin();
+    });
+    this.physics.add.overlap(this.player, this.bonus, () => {
+      if (this.finished || !this.bonus.visible) return;
+      this.deadline += 1000;
+      this.showBonusText(this.bonus.x, this.bonus.y);
+      this.hideBonus();
     });
     this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
     this.cursors = this.input.keyboard.createCursorKeys();
@@ -57,6 +69,7 @@ class CoinDash extends Phaser.Scene {
     this.hud.setColor(t.hud);
     this.player.setFillStyle(t.player);
     this.coin.setFillStyle(t.coin);
+    this.bonus.setFillStyle(t.bonus);
     this.drones.getChildren().forEach(drone => drone.setFillStyle(t.drone));
     if (this.overlay) {
       this.overlay.setFillStyle(t.overlay, 0.95);
@@ -74,6 +87,39 @@ class CoinDash extends Phaser.Scene {
     } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 60);
     this.coin.setPosition(x, y);
     this.coin.body.reset(x, y);
+  }
+
+  scheduleBonus() {
+    this.time.delayedCall(Phaser.Math.Between(6000, 10000), () => this.spawnBonus());
+  }
+
+  spawnBonus() {
+    if (this.finished) return;
+    const c = COIN_DASH;
+    // Keep the bonus well away from the player so it takes some effort to reach.
+    let x, y;
+    do {
+      x = Phaser.Math.Between(25, c.width - 25);
+      y = Phaser.Math.Between(70, c.height - 25);
+    } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 180);
+    this.bonus.setPosition(x, y).setVisible(true);
+    this.bonus.body.enable = true;
+    this.bonus.body.reset(x, y);
+    this.bonusTimer = this.time.delayedCall(2000, () => this.hideBonus());
+  }
+
+  hideBonus() {
+    if (!this.bonus.visible) return;
+    this.bonusTimer.remove();
+    this.bonus.setVisible(false);
+    this.bonus.body.enable = false;
+    this.scheduleBonus();
+  }
+
+  showBonusText(x, y) {
+    const color = '#' + theme().bonus.toString(16).padStart(6, '0');
+    const label = this.add.text(x, y - 16, '+1s', { font: 'bold 20px monospace', color }).setOrigin(0.5);
+    this.tweens.add({ targets: label, y: y - 46, alpha: 0, duration: 700, onComplete: () => label.destroy() });
   }
 
   update() {
