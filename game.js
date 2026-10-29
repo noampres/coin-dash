@@ -147,6 +147,7 @@ class CoinDash extends Phaser.Scene {
     if (this.finished) return;
     this.finished = true;
     this.physics.pause();
+    this.bonus.setVisible(false);
     const newBest = this.score > bestScore;
     if (newBest) saveBest(this.score);
     const c = COIN_DASH, t = theme();
