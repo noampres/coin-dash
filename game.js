@@ -9,6 +9,14 @@ function playCoinSound() {
   coinSound.currentTime = 0;
   coinSound.play().catch(() => {});
 }
+
+// Personal best survives restarts and reloads; falls back to 0 when storage is unavailable.
+let bestScore = 0;
+try { bestScore = Number(localStorage.getItem('coinDashBest')) || 0; } catch (e) { /* storage unavailable */ }
+function saveBest(score) {
+  bestScore = score;
+  try { localStorage.setItem('coinDashBest', String(score)); } catch (e) { /* storage unavailable */ }
+}
 class CoinDash extends Phaser.Scene {
   constructor() { super('CoinDash'); }
 
@@ -85,7 +93,7 @@ class CoinDash extends Phaser.Scene {
     const direction = new Phaser.Math.Vector2(dx, dy).normalize().scale(COIN_DASH.playerSpeed);
     this.player.body.setVelocity(direction.x, direction.y);
     const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
-    this.hud.setText(`Coins: ${this.score}                       Time: ${seconds}s`);
+    this.hud.setText(`Coins: ${this.score}          Best: ${bestScore}          Time: ${seconds}s`);
     if (seconds === 0) this.finish('Time is up!');
   }
 
@@ -93,10 +101,12 @@ class CoinDash extends Phaser.Scene {
     if (this.finished) return;
     this.finished = true;
     this.physics.pause();
+    const newBest = this.score > bestScore;
+    if (newBest) saveBest(this.score);
     const c = COIN_DASH, t = theme();
-    this.overlay = this.add.rectangle(c.width / 2, c.height / 2, 460, 150, t.overlay, 0.95);
+    this.overlay = this.add.rectangle(c.width / 2, c.height / 2, 460, 190, t.overlay, 0.95);
     this.overlayText = this.add.text(c.width / 2, c.height / 2,
-      `${reason}\n${this.score} coins collected\nPress R to try again`,
+      `${reason}\n${this.score} coins collected\n${newBest ? 'New best!' : `Best: ${bestScore}`}\nPress R to try again`,
       { font: '24px monospace', color: t.overlayText, align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5);
   }
