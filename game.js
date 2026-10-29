@@ -9,6 +9,14 @@ function playCoinSound() {
   coinSound.currentTime = 0;
   coinSound.play().catch(() => {});
 }
+
+// Personal best survives restarts and reloads; falls back to 0 when storage is unavailable.
+let bestScore = 0;
+try { bestScore = Number(localStorage.getItem('coinDashBest')) || 0; } catch (e) { /* storage unavailable */ }
+function saveBest(score) {
+  bestScore = score;
+  try { localStorage.setItem('coinDashBest', String(score)); } catch (e) { /* storage unavailable */ }
+}
 class CoinDash extends Phaser.Scene {
   constructor() { super('CoinDash'); }
 
@@ -30,6 +38,12 @@ class CoinDash extends Phaser.Scene {
     this.coin.body.setCircle(9);
     this.placeCoin();
     this.createBonus();
+    // Time bonus: a star that shows up briefly and adds a second to the clock.
+    this.timeBonus = this.add.star(0, 0, 5, 6, 13, t.timeBonus).setVisible(false);
+    this.physics.add.existing(this.timeBonus);
+    this.timeBonus.body.setCircle(13);
+    this.timeBonus.body.enable = false;
+    this.scheduleTimeBonus();
     this.drones = this.physics.add.group();
     for (let i = 0; i < c.droneCount; i++) {
       const drone = this.add.rectangle(90 + i * 270, 100, 26, 26, t.drone);
@@ -43,6 +57,12 @@ class CoinDash extends Phaser.Scene {
       this.score++;
       playCoinSound();
       this.placeCoin();
+    });
+    this.physics.add.overlap(this.player, this.timeBonus, () => {
+      if (this.finished || !this.timeBonus.visible) return;
+      this.deadline += 1000;
+      this.showTimeBonusText(this.timeBonus.x, this.timeBonus.y);
+      this.hideTimeBonus();
     });
     this.physics.add.overlap(this.player, this.drones, () => {
       if (this.time.now >= this.frozenUntil) this.finish('A drone caught you!');
@@ -67,6 +87,7 @@ class CoinDash extends Phaser.Scene {
     this.bonus.setFillStyle(t.bonus);
     this.freeze.setFillStyle(t.freeze);
     this.freezeText.setColor(t.freezeText);
+    this.timeBonus.setFillStyle(t.timeBonus);
     if (this.overlay) {
       this.overlay.setFillStyle(t.overlay, 0.95);
       this.overlayText.setColor(t.overlayText);
@@ -132,6 +153,41 @@ class CoinDash extends Phaser.Scene {
     ];
   }
 
+  scheduleTimeBonus() {
+    this.time.delayedCall(Phaser.Math.Between(6000, 10000), () => this.spawnTimeBonus());
+  }
+
+  spawnTimeBonus() {
+    if (this.finished) return;
+    const c = COIN_DASH;
+    // Keep the star well away from the player, and off any gem or freeze pickup on screen.
+    const near = (item, x, y) => item.visible && Phaser.Math.Distance.Between(x, y, item.x, item.y) < 40;
+    let x, y;
+    do {
+      x = Phaser.Math.Between(25, c.width - 25);
+      y = Phaser.Math.Between(70, c.height - 25);
+    } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 180
+      || near(this.bonus, x, y) || near(this.freeze, x, y));
+    this.timeBonus.setPosition(x, y).setVisible(true);
+    this.timeBonus.body.enable = true;
+    this.timeBonus.body.reset(x, y);
+    this.timeBonusTimer = this.time.delayedCall(2000, () => this.hideTimeBonus());
+  }
+
+  hideTimeBonus() {
+    if (!this.timeBonus.visible) return;
+    this.timeBonusTimer.remove();
+    this.timeBonus.setVisible(false);
+    this.timeBonus.body.enable = false;
+    this.scheduleTimeBonus();
+  }
+
+  showTimeBonusText(x, y) {
+    const color = '#' + theme().timeBonus.toString(16).padStart(6, '0');
+    const label = this.add.text(x, y - 16, '+1s', { font: 'bold 20px monospace', color }).setOrigin(0.5);
+    this.tweens.add({ targets: label, y: y - 46, alpha: 0, duration: 700, onComplete: () => label.destroy() });
+  }
+
   update() {
     if (this.finished) return;
     const dx = Number(this.cursors.right.isDown || this.keys.D.isDown)
@@ -142,7 +198,7 @@ class CoinDash extends Phaser.Scene {
     this.player.body.setVelocity(direction.x, direction.y);
     this.updateHunter();
     const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
-    this.hud.setText(`Coins: ${this.score}                       Time: ${seconds}s`);
+    this.hud.setText(`Coins: ${this.score}          Best: ${bestScore}          Time: ${seconds}s`);
     this.updateFreeze();
     if (seconds === 0) this.finish('Time is up!');
   }
@@ -249,10 +305,16 @@ class CoinDash extends Phaser.Scene {
     if (this.finished) return;
     this.finished = true;
     this.physics.pause();
+    // Clear every pickup so nothing lingers behind the end-of-round box.
+    this.hideBonus();
+    this.hideFreeze();
+    this.timeBonus.setVisible(false);
+    const newBest = this.score > bestScore;
+    if (newBest) saveBest(this.score);
     const c = COIN_DASH, t = theme();
-    this.overlay = this.add.rectangle(c.width / 2, c.height / 2, 460, 150, t.overlay, 0.95);
+    this.overlay = this.add.rectangle(c.width / 2, c.height / 2, 460, 190, t.overlay, 0.95);
     this.overlayText = this.add.text(c.width / 2, c.height / 2,
-      `${reason}\n${this.score} coins collected\nPress R to try again`,
+      `${reason}\n${this.score} coins collected\n${newBest ? 'New best!' : `Best: ${bestScore}`}\nPress R to try again`,
       { font: '24px monospace', color: t.overlayText, align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5);
   }
