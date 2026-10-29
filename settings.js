@@ -6,6 +6,9 @@ window.COIN_DASH = {
   playerSpeed: 240,
   droneSpeed: 105,
   droneCount: 3,
+  freezeDuration: 4000, // ms drones stay frozen after a pickup
+  freezeInterval: 11000, // ms between freeze pickup spawns
+  freezeLifetime: 6000, // ms an uncollected freeze pickup stays on screen
   themes: {
     dark: { background: 0x101c31, grid: 0x24334b, player: 0x71e8ce, coin: 0xffd166, drone: 0xff657a,
       hud: '#ffffff', overlay: 0x0a1120, overlayText: '#ffffff' },
@@ -13,3 +16,5 @@ window.COIN_DASH = {
       hud: '#1a2433', overlay: 0xffffff, overlayText: '#1a2433' }
   }
 };
+Object.assign(COIN_DASH.themes.dark, { freeze: 0x5b8cff, freezeText: '#5b8cff' });
+Object.assign(COIN_DASH.themes.light, { freeze: 0x2f62d9, freezeText: '#2f62d9' });
